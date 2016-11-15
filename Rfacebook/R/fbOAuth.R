@@ -60,17 +60,15 @@
 #' @param app_secret string, App Secret of application to be used to create OAUth token.
 #' Available at \url{https://developers.facebook.com/apps}, in Basic Settings panel.
 #'
-#' @param extended_permissions If \code{TRUE}, the token will give access to some of
-#' the authenticated user's private information (birthday, hometown, location,
-#' relationships) and that of his/her friends, and permissions to post
-#' status updates as well as to access checkins, likes, and the user's newsfeed
-#' If \code{FALSE}, token will give access only to public information. Note 
-#' that \code{updateStatus} will only work for tokens with extended permissions.
-#' After version 2.0 of the Graph API, creating an application with these permissions
-#' requires passing App Review (\url{https://developers.facebook.com/docs/facebook-login/review})
-#'
-#' @param legacy_permissions For tokens created with old versions of the API, this option
-#' adds the "read_stream" permission
+#' @param  scope Specify the scope for authentication 
+#' 
+#' Options include:
+#' 
+#' \code{c("user_birthday", "user_hometown", "user_location", "user_relationships", "publish_actions","user_status","user_likes")}
+#' \code{c("public_profile", "user_friends")}
+#' 
+#' See list of Facebook scopes here: 
+#' \url{https://developers.facebook.com/docs/facebook-login/permissions}
 #'
 #'
 #' @examples \dontrun{
@@ -90,7 +88,7 @@
 #'
 
 
-fbOAuth <- function(app_id, app_secret, extended_permissions=FALSE, legacy_permissions=FALSE)
+fbOAuth <- function(app_id, app_secret, scope = c("public_profile", "user_friends"))
 {
 	## getting callback URL
 	full_url <- oauth_callback()
@@ -104,59 +102,18 @@ fbOAuth <- function(app_id, app_secret, extended_permissions=FALSE, legacy_permi
 	  authorize = "https://www.facebook.com/dialog/oauth",
 	  access = "https://graph.facebook.com/oauth/access_token")	
 	myapp <- oauth_app("facebook", app_id, app_secret)
-	if (extended_permissions==TRUE){
-		scope <- c("user_birthday", "user_hometown", "user_location", "user_relationships",
-			"publish_actions","user_status","user_likes")
-	}
-	else { scope <- c("public_profile", "user_friends")}
-	
-	if (legacy_permissions==TRUE) {
-	  scope <- c(scope, "read_stream")
-	}
 
 	if (packageVersion('httr') < "1.2"){
 		stop("Rfacebook requires httr version 1.2.0 or greater")
 	}
-
-
-
-	## with early httr versions
-	if (packageVersion('httr') <= "0.2"){
-		facebook_token <- oauth2.0_token(facebook, myapp,
-		  scope=scope, type = "application/x-www-form-urlencoded")
-		fb_oauth <- sign_oauth2.0(facebook_token$access_token) 
-		if (GET("https://graph.facebook.com/me", config=fb_oauth)$status==200){
-			message("Authentication successful.")
-		}
-	}
-
-	## less early httr versions
-	if (packageVersion('httr') > "0.2" & packageVersion('httr') <= "0.6.1"){
-		fb_oauth <- oauth2.0_token(facebook, myapp,
-		  scope=scope, type = "application/x-www-form-urlencoded", cache=FALSE)	
-		if (GET("https://graph.facebook.com/me", config(token=fb_oauth))$status==200){
-	      	message("Authentication successful.")
-	  	}	
-	}
-
-	## httr version from 0.6 to 1.1
-	if (packageVersion('httr') > "0.6.1" & packageVersion('httr') < "1.2"){
-		Sys.setenv("HTTR_SERVER_PORT" = "1410/")
-		fb_oauth <- oauth2.0_token(facebook, myapp,
-		  scope=scope, type = "application/x-www-form-urlencoded", cache=FALSE)		
-		if (GET("https://graph.facebook.com/me", config(token=fb_oauth))$status==200){
-	      	message("Authentication successful.")
-	  	}	
-	}
-
-	## httr version after 1.2
-	if (packageVersion('httr') >= "1.2"){
-		fb_oauth <- oauth2.0_token(facebook, myapp,
-		  scope=scope, type = "application/x-www-form-urlencoded", cache=FALSE)		
-		if (GET("https://graph.facebook.com/me", config(token=fb_oauth))$status==200){
-	      	message("Authentication successful.")
-	  	}	
-	}
+	
+	fb_oauth <- oauth2.0_token(facebook, myapp,
+	                           scope=scope, type = "application/x-www-form-urlencoded", cache=FALSE)		
+	
+	if (GET("https://graph.facebook.com/me", config(token=fb_oauth))$status==200){
+	  message("Authentication successful.")
+	}	
+	
 
 	## identifying API version of token
 	error <- tryCatch(callAPI('https://graph.facebook.com/pablobarbera', fb_oauth),
